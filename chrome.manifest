@@ -1,0 +1,5 @@
+content	zotero-cite-columns				content/
+locale	zotero-cite-columns	en-US		locale/en-US/
+skin	zotero-cite-columns	default		skin/
+
+overlay	chrome://zotero/content/zoteroPane.xul	chrome://zotero-cite-columns/content/zotero-cite-columns.xul

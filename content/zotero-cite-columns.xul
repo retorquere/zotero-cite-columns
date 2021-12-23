@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<?xml-stylesheet href="chrome://zotero-cite-columns/skin/overlay.css" type="text/css"?>
+<!DOCTYPE window SYSTEM "chrome://zotero-cite-columns/locale/zotero-cite-columns.dtd">
+
+<overlay id="zotero-cite-columns-overlay" xmlns="http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul">
+  <script>
+    var globals = Function('return this')();
+    var zotero_cite_columns_zoteropane = null;
+  </script>
+  <stringbundleset>
+    <stringbundle id="zotero-cite-columns-strings" src="chrome://zotero-cite-columns/locale/zotero-cite-columns.properties"/>
+  </stringbundleset>
+
+  <treecols id="zotero-items-columns-header">
+    <treecol
+      id="zotero-items-columns-citation"
+      label="Citekey"
+      flex="1"
+      insertafter="zotero-items-columns-title"
+      zotero-persist="width ordinal hidden sortActive sortDirection"
+    />
+  </treecols>
+	
+	<!-- Include the main extension logic -->
+  <script src="chrome://zotero/content/include.js"/>
+  <script src="chrome://zotero-cite-columns/content/zotero-cite-columns.js"/>
+  <script>
+    window.addEventListener('load', async function() {
+      try {
+        Zotero.debug('zotero-cite-columns startup')
+        await Zotero.CiteColumns.load(globals)
+        Zotero.debug('zotero-cite-columns started')
+      } catch (err) {
+        Zotero.debug(`zotero-cite-columns ZoteroPane overlay error: ${err.message}\n${err.stack ||''}`)
+      }
+    })
+  </script>
+</overlay>
