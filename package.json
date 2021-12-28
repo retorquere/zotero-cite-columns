@@ -1,6 +1,6 @@
 {
   "name": "zotero-cite-columns",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Add CSL-rendered columns from the items",
   "scripts": {
     "lint": "eslint . --ext .ts --cache --cache-location .eslintcache/",
