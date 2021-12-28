@@ -7,12 +7,12 @@ Add CSL-rendered columns from items.
 
 # Usage
 
-You will need to create a CSL style with some special characteristics for this extension to work. You can use the [visual CSL editor](https://editor.citationstyles.org/visualEditor/) to create it; a base style can be found [here]().
+You will need to create a CSL style with some special characteristics for this extension to work. You can use the [visual CSL editor](https://editor.citationstyles.org/visualEditor/) to create it; a base style can be found [here](https://raw.githubusercontent.com/retorquere/zotero-cite-columns/master/zotero-cite-columns.csl).
 
 This style must have:
 
 * `/style/info/id` must be `http://www.zotero.org/styles/zotero-cite-columns`
-* `/style/citation/layout` must have a single child element, which must be a `group`. This group must have a delimiter set which will not appear in the output. I use `|`.
+* `/style/citation/layout` must have a single child element, which must be a `group`.
 * `/style/citation/layout/group` must have only `text` children of type `macro`
 
 You must copy this style to the zotero data directory (see Preferences - Advanced - Files and Folders for its location) and must be named `zotero-cite-columns.csl`.

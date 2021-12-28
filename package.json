@@ -41,5 +41,10 @@
     "name": "Cite Columns for Zotero",
     "updateLink": "https://github.com/retorquere/zotero-cite-columns/releases/download/v{version}/zotero-cite-columns-{version}.xpi",
     "releaseURL": "https://github.com/retorquere/zotero-cite-columns/releases/download/release/"
+  },
+  "devDependencies": {
+    "i": "^0.3.7",
+    "murmur-hash-js": "^1.0.0",
+    "npm": "^8.3.0"
   }
 }

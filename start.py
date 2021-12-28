@@ -36,6 +36,8 @@ for plugin_id in rdf.findall('{http://www.w3.org/1999/02/22-rdf-syntax-ns#}Descr
   plugin = os.path.join(args.profile_path, 'extensions', plugin_id.text)
 
 shutil.copy('zotero-cite-columns.csl', os.path.join(args.profile_path, 'zotero', 'zotero-cite-columns.csl'))
+cache = os.path.join(args.profile_path, 'zotero', 'zotero-cite-columns.json')
+system(f'rm -f {shlex.quote(cache)}')
 
 settings = {
   'extensions.autoDisableScopes': 0,

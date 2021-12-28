@@ -1,7 +1,8 @@
 declare const Zotero: any
 declare const OS: any
+declare const Components: any
 
-// declare const Components: any
+import murmur from 'murmur-hash-js'
 
 import { flash } from './flash'
 import { debug } from './debug'
@@ -15,14 +16,10 @@ function patch(object, method, patcher) {
   object[method][monkey_patch_marker] = true
 }
 
-type ColumnSpec = {
-  delimiter: string
-  labels: string[]
-}
-
 const fieldPrefix = 'cite-column-'
 const styleName = 'zotero-cite-columns'
 const styleId = `http://www.zotero.org/styles/${styleName}`
+const delimiter = '@@'
 
 function xpathOne(doc, query): Element {
   const nodes: Element[] = Zotero.Utilities.xpath(doc, query, Zotero.Styles.ns)
@@ -34,19 +31,23 @@ function xpathOne(doc, query): Element {
   }
 }
 
-async function colSpec(): Promise<ColumnSpec> {
-  function notfound(msg) { // eslint-disable-line prefer-arrow/prefer-arrow-functions
+type ColSpec = {
+  labels: string[]
+  hash?: number
+}
+async function colSpec(): Promise<ColSpec> {
+  function notfound(msg: string): ColSpec { // eslint-disable-line prefer-arrow/prefer-arrow-functions
     flash('failed to load column style', msg)
-    return { delimiter: '', labels: [] }
+    return { labels: [] }
   }
 
   try {
-    const file = OS.Path.join(Zotero.DataDirectory.dir, `${styleName}.csl`)
+    const path = OS.Path.join(Zotero.DataDirectory.dir, `${styleName}.csl`)
 
-    if (!(await OS.File.exists(file))) return notfound(`${file} not found`)
+    if (!(await OS.File.exists(path))) return notfound(`${path} not found`)
 
     const domParser = new DOMParser
-    const doc = domParser.parseFromString(Zotero.File.getContents(file), 'application/xml') as XMLDocument
+    const doc = domParser.parseFromString(Zotero.File.getContents(path) as string, 'application/xml') as XMLDocument
 
     const id = Zotero.Utilities.xpathText(doc, '/csl:style/csl:info/csl:id', Zotero.Styles.ns)
     if (id !== styleId) return notfound(`style ID must be ${styleId}, found ${id}`)
@@ -55,8 +56,7 @@ async function colSpec(): Promise<ColumnSpec> {
     if (layout.children.length !== 1 || layout.children[0].localName !== 'group') return notfound('layout should have exactly one child, which must be a group')
 
     const group = layout.children[0]
-    const delimiter = group.getAttribute('delimiter')
-    if (!delimiter) return notfound('/style/citation/layout/group must have a delimiter')
+    group.setAttribute('delimiter', delimiter)
 
     const labels: string[] = Array.from(group.children).map(child => {
       const macro: string = child.getAttribute('macro')
@@ -64,19 +64,17 @@ async function colSpec(): Promise<ColumnSpec> {
       return macro.replace(/_/g, ' ')
     })
 
-    await Zotero.Styles.install({ file }, styleId, true)
+    const style = Components.classes['@mozilla.org/xmlextras/xmlserializer;1'].createInstance(Components.interfaces.nsIDOMSerializer).serializeToString(doc)
+    debug('style:', style)
+    await Zotero.Styles.install({ string: style }, styleId, true) // eslint-disable-line id-blacklist
 
-    return {
-      delimiter,
-      labels,
-    }
+    return { labels, hash: murmur(style) }
   }
   catch (err) {
-    return notfound(err.message)
+    return notfound(err.message) // eslint-disable-line @typescript-eslint/no-unsafe-argument
   }
 }
 
-const pending: Set<number> = new Set
 // To show the cite-column in the reference list
 patch(Zotero.Item.prototype, 'getField', original => function Zotero_Item_prototype_getField(field: string, unformatted: boolean, includeBaseMapped: boolean) {
   try {
@@ -85,12 +83,11 @@ patch(Zotero.Item.prototype, 'getField', original => function Zotero_Item_protot
 
       if (!Zotero.CiteColumns?.citeproc) {
         debug('getField: pending', field)
-        pending.add(this.id)
         return ''
       }
 
-      let cite = Zotero.CiteColumns.cites[this.id]
-      debug('getField', field, cite)
+      let cite = Zotero.CiteColumns.cache.item[this.id]
+      debug('getField:', field, cite, this.dateModified)
       if (!cite || cite.dateModified !== this.dateModified) {
         Zotero.CiteColumns.citeproc.updateItems([this.id])
 
@@ -99,12 +96,15 @@ patch(Zotero.Item.prototype, 'getField', original => function Zotero_Item_protot
           properties: {},
         }
 
-        cite = Zotero.CiteColumns.cites[this.id] = {
+        const text = Zotero.CiteColumns.citeproc.previewCitationCluster(citation, [], [], 'text')
+        debug('pre-split:', JSON.stringify(text))
+
+        cite = Zotero.CiteColumns.cache.item[this.id] = {
           dateModified: this.dateModified,
-          fields: Zotero.CiteColumns.citeproc.previewCitationCluster(citation, [], [], 'text').split(Zotero.CiteColumns.columns.delimiter),
+          fields: text.split(delimiter),
         }
       }
-      debug('getField', field, cite)
+      debug('getField:', field, cite)
 
       const index = parseInt(field.substring(fieldPrefix.length))
       return cite.fields[index] || '' // eslint-disable-line @typescript-eslint/no-unsafe-return
@@ -124,11 +124,9 @@ class CiteColumns { // tslint:disable-line:variable-name
   private ready = false
   private globals: Record<string, any>
   private strings: any
-  private columns: ColumnSpec
-  public cites: Record<number, { dateModified: string, fields: string[] }> = {}
+  private columns: ColSpec
   public citeproc: any
-  public pending: Set<number> = new Set
-  private cache: string
+  public cache: { path: string, hash: number, item: Record<number, { dateModified: string, fields: string[] }> }
 
   // eslint-disable-next-line @typescript-eslint/require-await
   public async load(globals: Record<string, any>) {
@@ -157,14 +155,15 @@ class CiteColumns { // tslint:disable-line:variable-name
       const locale = Zotero.Prefs.get('export.quickCopy.locale')
       this.citeproc = Zotero.Styles.get(styleId).getCiteProc(locale)
 
-      this.cache = OS.Path.join(Zotero.DataDirectory.dir, `${styleName}.json`)
-      if ((await OS.File.exists(this.cache))) {
+      const cache = OS.Path.join(Zotero.DataDirectory.dir, `${styleName}.json`)
+      if ((await OS.File.exists(cache))) {
         try {
-          this.cites = JSON.parse(Zotero.File.getContents(this.cache))
+          this.cache = { ...JSON.parse(Zotero.File.getContents(this.cache)), path: cache } // eslint-disable-line @typescript-eslint/no-unsafe-argument
+          if (this.cache.hash !== this.columns.hash) throw new Error(`cache hash mismatch, found ${this.cache.hash}, expected ${this.columns.hash}`)
         }
         catch (err) {
-          flash('failed to load cache', `${this.cache}: ${err.message}`)
-          this.cites = {}
+          flash('failed to load cache', `${cache}: ${err.message}`)
+          this.cache = { path: cache, hash: this.columns.hash, item: {} }
         }
       }
 
@@ -182,8 +181,8 @@ class CiteColumns { // tslint:disable-line:variable-name
 
   private save() {
     if (this.cache) {
-      const file = Zotero.File.pathToFile(this.cache)
-      Zotero.File.putContents(file, JSON.stringify(this.cites))
+      const file = Zotero.File.pathToFile(this.cache.path)
+      Zotero.File.putContents(file, JSON.stringify({ ...this.cache, path: undefined }))
     }
   }
 }
