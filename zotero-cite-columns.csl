@@ -3,8 +3,9 @@
   <!-- This style was edited with the Visual CSL Editor (https://editor.citationstyles.org/visualEditor/) -->
   <info>
     <title>Zotero Citation Columns</title>
-    <id>https://retorque.re/zotero-citation-columns/zotero-citation-columns.csl</id>
-    <link href="https://retorque.re/zotero-citation-columns/zotero-citation-columns.csl" rel="self"/>
+    <id>http://www.zotero.org/styles/zotero-cite-columns</id>
+    <link href="http://www.zotero.org/styles/zotero-cite-columns" rel="self"/>
+    <link href="https://github.com/retorquere/zotero-citation-columns" rel="documentation"/>
     <author>
       <name>Brenton M. Wiernik</name>
       <email>zotero@wiernik.org</email>
@@ -315,6 +316,13 @@
       <term name="letter" form="short">信函</term>
     </terms>
   </locale>
+  <macro name="Cite_Col_1">
+    <group delimiter=", ">
+      <text macro="author-intext"/>
+      <text macro="date-intext"/>
+      <text macro="citation-locator"/>
+    </group>
+  </macro>
   <macro name="author-bib">
     <names variable="composer" delimiter=", ">
       <name name-as-sort-order="all" and="symbol" sort-separator=", " initialize-with=". " delimiter=", " delimiter-precedes-last="always"/>
@@ -1739,14 +1747,7 @@
     </sort>
     <layout delimiter=" ">
       <group delimiter="|">
-        <group delimiter=", ">
-          <text macro="author-intext"/>
-          <text macro="date-intext"/>
-          <text macro="citation-locator"/>
-        </group>
-        <group>
-          <text macro="author-intext"/>
-        </group>
+        <text macro="Cite_Col_1"/>
       </group>
     </layout>
   </citation>

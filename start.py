@@ -7,6 +7,7 @@ import configparser
 import argparse
 import shlex
 import xml.etree.ElementTree as ET
+import subprocess
 
 config = configparser.ConfigParser()
 if os.path.isfile('start.ini'):
@@ -22,11 +23,19 @@ if not args.profile_path:
   print(args.usage())
   sys.exit(1)
 
+args.profile_path = os.path.expanduser(args.profile_path)
+if args.log:
+  args.log = os.path.expanduser(args.log)
+
+def system(cmd):
+  print('$', cmd)
+  subprocess.run(cmd, shell=True, check=True)
+
 rdf = ET.parse('build/install.rdf').getroot()
 for plugin_id in rdf.findall('{http://www.w3.org/1999/02/22-rdf-syntax-ns#}Description/{http://www.mozilla.org/2004/em-rdf#}id'):
   plugin = os.path.join(args.profile_path, 'extensions', plugin_id.text)
 
-shutil.copy('cite-columns.csl', os.path.join(args.profile_path, 'zotero', 'styles', 'cite-columns.csl'))
+shutil.copy('zotero-cite-columns.csl', os.path.join(args.profile_path, 'zotero', 'zotero-cite-columns.csl'))
 
 settings = {
   'extensions.autoDisableScopes': 0,
@@ -37,7 +46,7 @@ settings = {
   'extensions.zotero.debug.log': True,
 }
 for prefs in ['user', 'prefs']:
-  prefs = os.path.expanduser(os.path.join(args.profile_path, f'{prefs}.js'))
+  prefs = os.path.join(args.profile_path, f'{prefs}.js')
   if not os.path.exists(prefs): continue
 
   user_prefs = []
@@ -53,12 +62,12 @@ for prefs in ['user', 'prefs']:
   with open(prefs, 'w') as f:
     f.write(''.join(user_prefs))
 
-os.system('npm run build')
+system('npm run build')
 
-#os.system(f'rm -rf {profile}extensions.json')
-os.system(f"rm -rf {shlex.quote(plugin + '*')}")
+#system(f'rm -rf {profile}extensions.json')
+system(f"rm -rf {shlex.quote(plugin + '*')}")
 
-with open(os.path.expanduser(plugin), 'w') as f:
+with open(plugin, 'w') as f:
   path = os.path.join(os.getcwd(), 'build')
   if path[-1] != '/': path += '/'
   print(path, file=f)
@@ -66,8 +75,7 @@ with open(os.path.expanduser(plugin), 'w') as f:
 cmd = '/Applications/Zotero.app/Contents/MacOS/zotero -purgecaches -P'
 if args.profile_name: cmd += ' ' + shlex.quote(args.profile_name)
 cmd += ' -jsconsole -ZoteroDebugText -datadir profile'
-if args.log: cmd += ' > ' + shlex.quote(os.path.expanduser(args.log))
+if args.log: cmd += ' > ' + shlex.quote(args.log)
 cmd += ' &'
 
-print(cmd)
-os.system(cmd)
+system(cmd)

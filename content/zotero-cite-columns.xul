@@ -11,16 +11,6 @@
     <stringbundle id="zotero-cite-columns-strings" src="chrome://zotero-cite-columns/locale/zotero-cite-columns.properties"/>
   </stringbundleset>
 
-  <treecols id="zotero-items-columns-header">
-    <treecol
-      id="zotero-items-columns-citation"
-      label="Citekey"
-      flex="1"
-      insertafter="zotero-items-columns-title"
-      zotero-persist="width ordinal hidden sortActive sortDirection"
-    />
-  </treecols>
-	
 	<!-- Include the main extension logic -->
   <script src="chrome://zotero/content/include.js"/>
   <script src="chrome://zotero-cite-columns/content/zotero-cite-columns.js"/>
