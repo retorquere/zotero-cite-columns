@@ -2,7 +2,7 @@ declare const Zotero: any
 declare const OS: any
 declare const Components: any
 
-import murmur from 'murmur-hash-js'
+import hashes from 'jshashes'
 
 import { flash } from './flash'
 import { debug } from './debug'
@@ -19,7 +19,7 @@ function patch(object, method, patcher) {
 const fieldPrefix = 'cite-column-'
 const styleName = 'zotero-cite-columns'
 const styleId = `http://www.zotero.org/styles/${styleName}`
-const delimiter = '@@'
+const delimiter = '#@@#'
 
 function xpathOne(doc, query): Element {
   const nodes: Element[] = Zotero.Utilities.xpath(doc, query, Zotero.Styles.ns)
@@ -33,7 +33,7 @@ function xpathOne(doc, query): Element {
 
 type ColSpec = {
   labels: string[]
-  hash?: number
+  hash?: string
 }
 async function colSpec(): Promise<ColSpec> {
   function notfound(msg: string): ColSpec { // eslint-disable-line prefer-arrow/prefer-arrow-functions
@@ -68,13 +68,15 @@ async function colSpec(): Promise<ColSpec> {
     debug('style:', style)
     await Zotero.Styles.install({ string: style }, styleId, true) // eslint-disable-line id-blacklist
 
-    return { labels, hash: murmur(style) }
+    return { labels, hash: new hashes.SHA1().b64(style) }
   }
   catch (err) {
     return notfound(err.message) // eslint-disable-line @typescript-eslint/no-unsafe-argument
+    debug('Error:', `${err.message}\n\n${err.stack}`)
   }
 }
 
+const pending: Set<number> = new Set
 // To show the cite-column in the reference list
 patch(Zotero.Item.prototype, 'getField', original => function Zotero_Item_prototype_getField(field: string, unformatted: boolean, includeBaseMapped: boolean) {
   try {
@@ -83,6 +85,7 @@ patch(Zotero.Item.prototype, 'getField', original => function Zotero_Item_protot
 
       if (!Zotero.CiteColumns?.citeproc) {
         debug('getField: pending', field)
+        pending.add(this.id as number)
         return ''
       }
 
@@ -111,7 +114,7 @@ patch(Zotero.Item.prototype, 'getField', original => function Zotero_Item_protot
     }
   }
   catch (err) {
-    debug('patched getField:', field, unformatted, includeBaseMapped, err.message)
+    debug('Error: patched getField:', field, unformatted, includeBaseMapped, err.message)
     return ''
   }
 
@@ -126,7 +129,7 @@ class CiteColumns { // tslint:disable-line:variable-name
   private strings: any
   private columns: ColSpec
   public citeproc: any
-  public cache: { path: string, hash: number, item: Record<number, { dateModified: string, fields: string[] }> }
+  public cache: { path: string, hash: string, item: Record<number, { dateModified: string, fields: string[] }> }
 
   // eslint-disable-next-line @typescript-eslint/require-await
   public async load(globals: Record<string, any>) {
@@ -152,20 +155,21 @@ class CiteColumns { // tslint:disable-line:variable-name
     }
 
     if (this.columns.labels.length) {
-      const locale = Zotero.Prefs.get('export.quickCopy.locale')
-      this.citeproc = Zotero.Styles.get(styleId).getCiteProc(locale)
-
       const cache = OS.Path.join(Zotero.DataDirectory.dir, `${styleName}.json`)
       if ((await OS.File.exists(cache))) {
         try {
-          this.cache = { ...JSON.parse(Zotero.File.getContents(this.cache)), path: cache } // eslint-disable-line @typescript-eslint/no-unsafe-argument
+          this.cache = { ...JSON.parse(Zotero.File.getContents(Zotero.File.pathToFile(cache))), path: cache } // eslint-disable-line @typescript-eslint/no-unsafe-argument
           if (this.cache.hash !== this.columns.hash) throw new Error(`cache hash mismatch, found ${this.cache.hash}, expected ${this.columns.hash}`)
         }
         catch (err) {
           flash('failed to load cache', `${cache}: ${err.message}`)
-          this.cache = { path: cache, hash: this.columns.hash, item: {} }
+          this.cache = null
         }
       }
+      this.cache = this.cache || { path: cache, hash: this.columns.hash, item: {} }
+
+      const locale = Zotero.Prefs.get('export.quickCopy.locale')
+      this.citeproc = Zotero.Styles.get(styleId).getCiteProc(locale)
 
       const view = Zotero.getActiveZoteroPane().itemsView
       if (typeof Zotero.ItemTreeView === 'undefined') {
@@ -174,6 +178,10 @@ class CiteColumns { // tslint:disable-line:variable-name
       else {
         await view.refresh()
       }
+      /*
+      debug('pending:', pending)
+      await Zotero.Notifier.trigger('refresh', 'item', Array.from(pending))
+      */
 
       Zotero.addShutdownListener(() => this.save())
     }
