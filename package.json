@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && node esbuild.js",
     "postbuild": "zotero-plugin-zipup build zotero-cite-columns",
     "release": "zotero-plugin-release",
-    "postversion": "git push --follow-tags"
+    "postversion": "git push --follow-tags",
+    "start": "zotero-start"
   },
   "repository": {
     "type": "git",
@@ -23,19 +24,19 @@
   },
   "homepage": "https://github.com/retorquere/zotero-cite-columns",
   "dependencies": {
-    "@types/mocha": "^9.0.0",
-    "@typescript-eslint/eslint-plugin": "^5.8.0",
-    "@typescript-eslint/parser": "^5.8.0",
-    "esbuild": "^0.14.7",
-    "eslint": "^8.5.0",
-    "eslint-plugin-import": "^2.25.3",
-    "eslint-plugin-jsdoc": "^37.4.0",
+    "@types/mocha": "^9.1.0",
+    "@typescript-eslint/eslint-plugin": "^5.11.0",
+    "@typescript-eslint/parser": "^5.11.0",
+    "esbuild": "^0.14.21",
+    "eslint": "^8.9.0",
+    "eslint-plugin-import": "^2.25.4",
+    "eslint-plugin-jsdoc": "^37.9.0",
     "eslint-plugin-prefer-arrow": "^1.2.3",
     "mkdirp": "^1.0.4",
     "rimraf": "^3.0.2",
-    "ts-node": "^10.4.0",
-    "typescript": "^4.5.4",
-    "zotero-plugin": "^1.0.62"
+    "ts-node": "^10.5.0",
+    "typescript": "^4.5.5",
+    "zotero-plugin": "^1.1.2"
   },
   "xpi": {
     "name": "Cite Columns for Zotero",
@@ -44,7 +45,6 @@
   },
   "devDependencies": {
     "i": "^0.3.7",
-    "jshashes": "^1.0.8",
-    "npm": "^8.3.0"
+    "jshashes": "^1.0.8"
   }
 }
